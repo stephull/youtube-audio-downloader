@@ -1,3 +1,3 @@
 #!/bin/bash
-cd $2
-exec youtube-dl -f 140 $1
+cd $1
+exec youtube-dl --print-json -f 140 $2
