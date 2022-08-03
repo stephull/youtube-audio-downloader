@@ -3,14 +3,18 @@ from tkinter import filedialog
 import subprocess, os, re
 
 # stack for queueing multiple items
-URLLIST = ["Song 1", "Song 2", "Song 3"]
+URLLIST = []
+
+# dimensions
+windowHeight = 420
+windowWidth = 625
+windowScaling = 1.5
 
 # essential Tkinter window items
 root = tk.Tk()
 root.title("YouTube Audio Downloader")
-root.tk.call('tk', 'scaling', 1.5)
-canvas1 = tk.Canvas(root, width=250, height=150)
-ready = False
+root.tk.call('tk', 'scaling', windowScaling)
+root.geometry(f"{windowWidth}x{windowHeight}")
 
 # variable for directory 
 savetofolder = os.getcwd()
@@ -19,27 +23,34 @@ savetofolder = savetofolder.replace("\\", "/")
 # dynamic labels (change based on actions of user)
 cwdlabel = tk.Label(root, text=f"Currently saved in: {savetofolder}", bg='yellow', fg='black')
 donelabel = tk.Label(root, text="Complete!", fg='black', bg='green2')
+exceptionlabel = tk.Label(root, text="Error, link could not be completed!", bg='red', fg='white')
 
 # input Youtube URL 
-inputlabel = tk.Label(root, text="Insert YouTube link...")
-inputlabel.pack()
-inputtxt = tk.Text(root, height=2, width=60)
-inputtxt.pack()
+inputlabel = tk.Label(root, text="::: YouTube Audio Downloader :::\n\nInsert YouTube link...")
+inputlabel.grid(row=0, column=0, padx=2, pady=5)
+inputtxt = tk.Text(root, height=2, width=40)
+inputtxt.configure(font=("Helvetica", 10))
+inputtxt.grid(row=1, column=0, padx=5, pady=10)
 
-# FUNCTION: save to chosen directory if user wants specific directory
+#
+#
+#
+
+# choose directory
+# ... save to chosen directory if user wants specific directory
 def saveto():
     global savetofolder
     savetofolder = filedialog.askdirectory(initialdir=os.path.normpath("/mnt/c/"), title="Save to Folder")
     cwdlabel.configure(text=f"Currently saved in {savetofolder}", bg='yellow', fg='black')
 
-# instruct user to choose directory and display directory
 outputdirlabel = tk.Label(root, text='Where do you want to save the audio?')
-outputdirlabel.pack()
-outputbtn = tk.Button(root, text='Save to...', command=saveto, bg='blue', fg='white')
-outputbtn.pack()
-cwdlabel.pack()
+outputdirlabel.grid(row=2, column=0, padx=2, pady=5)
+outputbtn = tk.Button(root, text='Save to...', command=saveto, bg='green', fg='white')
+outputbtn.grid(row=2, column=1, padx=2, pady=5)
+cwdlabel.grid(row=3, column=0, padx=2, pady=5)
 
-# FUNCTION: save link and refine using regex, ensures link is readable in Bash
+# button & command to download immediately
+# ... save link and refine using regex, ensures link is readable in Bash
 youtubeURL = None
 def convert(link):
     global savetofolder, youtubeURL
@@ -49,7 +60,6 @@ def convert(link):
     
     channelURI = "&ab_"
     youtubeURL = re.sub(f'({channelURI})\w+=[\w\d\$\_\-]+', '', link)
-    print(youtubeURL)
     
     bashCmd = f"bash ./convert.sh {savetofolder} {youtubeURL}"
     process = subprocess.Popen(bashCmd.split(), stdout=subprocess.PIPE)
@@ -57,35 +67,54 @@ def convert(link):
     output, err = process.communicate()
     if (err != None):
         print(f"::: ERROR :::\n{err}")
-    print(f"::: OUTPUT :::\n{output}")
-    donelabel.pack()
-
-# ready to download audio from link, triggered when user clicks 'Download'
+        exceptionlabel.grid(row=9, column=0, padx=2, pady=5)
+    else:
+        print(f"::: OUTPUT :::\n{output}")
+        donelabel.grid(row=9, column=0, padx=2, pady=5)
+    inputtxt.delete("1.0", "end-1c")
+    
 def download():
-    ready = True
     inp = inputtxt.get(1.0, "end-1c")
-    if ready and len(inp) > 0:
+    if len(inp) > 0:
         convert(inp)
+downloadNowButton = tk.Button(root, command=download, text='Download', bg='blue', fg='white')
+downloadNowButton.grid(row=1, column=1, padx=2, pady=5)
 
-# download all from list of links prepared
+# button and command to add to queue
+def addtoqueue():
+    inp = inputtxt.get("1.0", "end-1c")
+    tmp_index = len(URLLIST)
+    URLLIST.append(inp)
+    listcanvas.insert(tmp_index, URLLIST[tmp_index])
+    inputtxt.delete("1.0", "end-1c")
+addToQueueButton = tk.Button(root, command=addtoqueue, text='Add To Queue', bg='purple', fg='white')
+addToQueueButton.grid(row=1, column=2, padx=2, pady=5)
+
+# button and commmand for downloading all links
 def downloadAll():
-    pass
+    for i in range(len(URLLIST)):
+        print(URLLIST[i])
+        tmp_download = listcanvas.get(0)
+        convert(tmp_download)
+        listcanvas.delete(0)
+    URLLIST.clear()
+downloadAllButton = tk.Button(root, command=downloadAll, text='Download All', bg='blue', fg='white')
+downloadAllButton.grid(row=6, column=1, padx=2, pady=5)
+
+#
+#
+#
 
 # components of tkinter window
-button1 = tk.Button(root, text="Download", command=download, bg='blue', fg='white')
-canvas1.create_window(120, 60, window=button1)
-msglabel = tk.Label(root, text="Window will freeze when downloading, wait until you see 'Complete'")
-msglabel.pack()
-
-button2 = tk.Button(root, text="Download All", command=downloadAll, bg='purple', fg='white')
-canvas1.create_window(120, 90, window=button2)
+msglabel = tk.Label(root, text="Window freezes when downloading, wait until you see 'Complete!'")
+msglabel.grid(row=7, column=0, padx=2, pady=5)
 
 # show list from URLLIST
+listcanvaslabel = tk.Label(root, text='Queue')
+listcanvaslabel.grid(row=5, column=0, padx=5, pady=5)
 listcanvas = tk.Listbox(root, height=5, width=50, bg='grey', activestyle='dotbox', fg='white')
 for i in range(len(URLLIST)):
-    listcanvas.insert(i+1, URLLIST[i])
-listcanvas.pack()
+    listcanvas.insert(i, URLLIST[i])
+listcanvas.grid(row=6, column=0, padx=2, pady=5)
 
-# finalize everything :-)
-canvas1.pack()
 root.mainloop()
