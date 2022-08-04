@@ -1,8 +1,9 @@
 import tkinter as tk 
-from tkinter import filedialog, font, IntVar
+from tkinter import filedialog, font, IntVar, Toplevel
 import re
 import os
 import subprocess
+import webbrowser 
 
 class AudioManager(tk.Tk):
     
@@ -20,6 +21,8 @@ class AudioManager(tk.Tk):
     tkHeight = 480
     tkWidth = 630
     tkScale = 1.5
+    cutHeight = 1.5
+    cutWidth = 2
     textProperties = ("Helvetica", 10)
     textBoldProperties = ("Helvetica", 10, font.BOLD)
     textTidbitProperties = ("Helvetica", 7, font.ITALIC)
@@ -48,6 +51,9 @@ class AudioManager(tk.Tk):
             font=self.textBoldProperties
         )
         inputlabel.grid(row=0, column=0, padx=2, pady=5)
+        
+        self.creditsButton = tk.Button(self, command=self.credits_and_help, text='FAQ', bg='white', fg='black')
+        self.creditsButton.grid(row=0, column=1, padx=2, pady=5)
         
         self.inputtxt = tk.Text(self, height=2, width=40)
         self.inputtxt.configure(font=self.textProperties)
@@ -151,6 +157,8 @@ class AudioManager(tk.Tk):
         inp = self.inputtxt.get("1.0", "end-1c")
         if len(inp) < self.YOUTUBE_URL_LENGTH:
             return 
+        if inp in self.URLLIST:
+            return
         tmp_index = len(self.URLLIST)
         self.URLLIST.append(inp)
         self.listcanvas.insert(tmp_index, f"({tmp_index}) {self.URLLIST[tmp_index]}")
@@ -213,6 +221,36 @@ class AudioManager(tk.Tk):
         self.FSEXITLIST.clear()
         self.destroy()
         print("Exiting YouTube Audio Downloader...")
+
+    # get URL
+    def retrieveURL(self, link):
+        webbrowser.open_new_tab(link)
+
+    # credits and help
+    def credits_and_help(self):
+        self.askWindow = Toplevel(self)
+        self.askWindow.title("FAQ - YouTube Audio Downloader")
+        self.askWindow.geometry(f"{int(self.tkHeight / self.cutHeight)}x{int(self.tkWidth / self.cutWidth)}")
+        
+        mainAskLabel = tk.Label(self.askWindow, text='Credits', font=self.textBoldProperties)
+        mainAskLabel.pack()
+        
+        creditsFrame = tk.Frame(self.askWindow)
+        hyperlinkText = tk.Label(self.askWindow, text='Link to GitHub', font=self.textProperties, fg='blue')
+        hyperlinkText.bind('<Button-1>', lambda e: self.retrieveURL("https://www.github.com/stephull/youtube-audio-downloader/"))
+        hyperlinkText.configure(font=font.Font(
+            hyperlinkText, 
+            hyperlinkText.cget('font'), 
+            underline=True
+        ))
+        hyperlinkText.pack()
+        creditsFrame.pack()
+        
+        secondAskLabel = tk.Label(self.askWindow, text='FAQ', font=self.textBoldProperties)
+        secondAskLabel.pack()
+        
+        faqFrame = tk.Frame(self.askWindow)
+        faqFrame.pack()
 
 # main application run
 if __name__ == "__main__":
