@@ -4,21 +4,25 @@ import re, os, sys
 import subprocess
 import webbrowser 
 
+# data structure (queue) properties
+URLLIST = []
+YOUTUBE_URL_LENGTH = 43
+MAGICWORD = "https://youtube.com"
+MAGICPLAYLISTWORD = "https://youtube.com/playlist?"
+FSEXITLIST = []
+FSEXITMAX = 3
+RECENTLIST = []
+RECENTMAX = 5
+
+# temporary, source directory on download
+ORIGIN_DIRECTORY_WINDOWS = "C:/Users/shull/youtube-audio-downloader"
+ORIGIN_DIRECTORY_LINUX = "/mnt/c/Users/shull/youtube-audio-downloader"
+
+# regex properties
+REGEX_CHANNEL = '(&ab_)\w+=[\w\d\_\-]+'
+REGEX_INDEX = '^[()]\d+[()]\s'
+
 class AudioManager(tk.Tk):
-    
-    # data structure (queue) properties
-    URLLIST = []
-    YOUTUBE_URL_LENGTH = 43
-    FSEXITLIST = []
-    FSEXITMAX = 3
-    
-    # temporary, source directory on download
-    ORIGIN_DIRECTORY_WINDOWS = "C:/Users/shull/youtube-audio-downloader"
-    ORIGIN_DIRECTORY_LINUX = "/mnt/c/Users/shull/youtube-audio-downloader"
-    
-    # regex properties
-    REGEX_CHANNEL = '(&ab_)\w+=[\w\d\_\-]+'
-    REGEX_INDEX = '^[()]\d+[()]\s'
     
     # dimensions of Tkinter window + text styles
     tkHeight = 480
@@ -36,6 +40,9 @@ class AudioManager(tk.Tk):
         self.title("YouTube Audio Downloader")
         self.tk.call('tk', 'scaling', self.tkScale)
         self.geometry(f"{self.tkWidth}x{self.tkHeight}")
+        
+        # get most recent downloads
+        self.render_previous_downloads()
         
         # place components in order of appearence
         self.pick_top_buttons()
@@ -129,10 +136,10 @@ class AudioManager(tk.Tk):
             self.savetofolder = self.savetofolder.replace("C:/", "/mnt/c/")
         self.savetofolder = f"{self.savetofolder}/"
         
-        youtubeURL = re.sub(self.REGEX_CHANNEL, '', link)
+        youtubeURL = re.sub(REGEX_CHANNEL, '', link)
         bash_file = "./youtubeaudioconvert.sh"
-        if (os.getcwd() != self.ORIGIN_DIRECTORY_LINUX or os.getcwd() != self.ORIGIN_DIRECTORY_WINDOWS):
-            bash_file = f"{self.ORIGIN_DIRECTORY_LINUX}/youtubeaudioconvert.sh"
+        if (os.getcwd() != ORIGIN_DIRECTORY_LINUX or os.getcwd() != ORIGIN_DIRECTORY_WINDOWS):
+            bash_file = f"{ORIGIN_DIRECTORY_LINUX}/youtubeaudioconvert.sh"
         process = subprocess.Popen(
             ["bash", bash_file, self.savetofolder, youtubeURL],
             stdout=subprocess.PIPE        
@@ -148,17 +155,25 @@ class AudioManager(tk.Tk):
     # check for file system queue if user allows it
     def wait_for_closing(self):
         if self.enableFileSystemOnClose.get() > 0:
-            if len(self.FSEXITLIST) == self.FSEXITMAX:
-                self.FSEXITLIST.pop(0)
-            self.FSEXITLIST.append(self.savetofolder)
-            print(self.FSEXITLIST)
+            if len(FSEXITLIST) == FSEXITMAX:
+                FSEXITLIST.pop(0)
+            FSEXITLIST.append(self.savetofolder)
+            print(FSEXITLIST)
         
     # download one song immediately from text entry
     def download_now(self):
         inp = self.inputtxt.get(1.0, "end-1c")
-        if len(inp) >= self.YOUTUBE_URL_LENGTH:
+        if len(inp) >= YOUTUBE_URL_LENGTH and inp.startswith(MAGICWORD):
             self.bash_pipe(inp) 
             self.wait_for_closing()
+    
+    # before program starts, get recent downloads from last time
+    def render_previous_downloads(self):
+        return 
+    
+    # show recent downloads
+    def show_recent_downloads(self):
+        return 
     
     # all components for: queue area
     def pick_queue(self):
@@ -169,14 +184,14 @@ class AudioManager(tk.Tk):
         self.listcanvas.grid(row=7, column=0, rowspan=3, padx=2, pady=5)
         
         delFromQueueButton = self.make_button('Delete selection', self.delete_one_from_queue, bg='red')
-        delFromQueueButton.grid(row=8, column=1, padx=2, pady=5)
+        delFromQueueButton.grid(row=8, column=2, padx=2, pady=5)
         
         delFrame = tk.Frame(self)
         delFromLabel = self.make_label("Type index number:", src=delFrame, italic=True)
         delFromLabel.pack()
         self.delFromSelection = tk.Text(delFrame, width=3, height=1)
         self.delFromSelection.pack()
-        delFrame.grid(row=8, column=2, padx=2, pady=5)
+        delFrame.grid(row=8, column=1, padx=2, pady=5)
         
         downloadAllButton = self.make_button("Download All", self.download_queue, bg='cyan')
         downloadAllButton.grid(row=7, column=1, padx=2, pady=5)
@@ -187,23 +202,24 @@ class AudioManager(tk.Tk):
     # add into queue
     def post_to_queue(self):
         inp = self.inputtxt.get("1.0", "end-1c")
-        if len(inp) < self.YOUTUBE_URL_LENGTH:
+        if len(inp) < YOUTUBE_URL_LENGTH:
             return 
-        if inp in self.URLLIST:
+        if inp in URLLIST:
             return
-        tmp_index = len(self.URLLIST)
-        self.URLLIST.append(inp)
-        self.listcanvas.insert(tmp_index, f"({tmp_index}) {self.URLLIST[tmp_index]}")
+        tmp_index = len(URLLIST)
+        URLLIST.append(inp)
+        self.listcanvas.insert(tmp_index, f"({tmp_index}) {URLLIST[tmp_index]}")
         self.inputtxt.delete(1.0, "end-1c")
     
     # download all audio from queue
     def download_queue(self):
-        for i in range(len(self.URLLIST)):
+        for i in range(len(URLLIST)):
             downloading = self.listcanvas.get(0)
-            downloading = re.sub(self.REGEX_INDEX, '', downloading)
-            self.bash_pipe(downloading)
-            self.listcanvas.delete(0)
-        self.URLLIST.clear()
+            downloading = re.sub(REGEX_INDEX, '', downloading)
+            if len(downloading) >= YOUTUBE_URL_LENGTH and MAGICWORD in downloading:
+                self.bash_pipe(downloading)
+                self.listcanvas.delete(0)
+        URLLIST.clear()
         self.wait_for_closing()
     
     # delete selection from queue
@@ -214,18 +230,18 @@ class AudioManager(tk.Tk):
         except ValueError:
             return 
         self.listcanvas.delete(index)
-        self.URLLIST.pop(index)
-        for i in range(index, len(self.URLLIST)):
+        URLLIST.pop(index)
+        for i in range(index, len(URLLIST)):
             list_value = self.listcanvas.get(i)
-            list_value = re.sub(self.REGEX_INDEX, '', list_value)
+            list_value = re.sub(REGEX_INDEX, '', list_value)
             self.listcanvas.delete(i)
             self.listcanvas.insert(i, f"({i}) {list_value}")
             
     # and delete all items from queue
     def delete_all_from_queue(self):
-        for url in self.URLLIST:
+        for url in URLLIST:
             self.listcanvas.delete(0)
-        self.URLLIST.clear()
+        URLLIST.clear()
     
     # all components for results (messages)
     def pick_result_msg(self):
@@ -240,55 +256,25 @@ class AudioManager(tk.Tk):
         self.authorlabel = self.make_label("")
         self.authorlabel.grid(row=11, column=0, padx=2, pady=5)    
     
-    # save favorite directories for next time
-    def save_favorite_directories(self):
-        pass
-    
-    # and save favorite files just in case
-    def save_favorite_files(self):
-        pass
-    
-    # open favorite directories from previous sessions
-    def open_favorite_directories(self):
-        pass
-    
-    # open favorite files from previous sessions 
-    def open_favorite_files(self):
-        pass 
-    
-    # when opening favorites window, show elements here
-    def open_favorites(self):
-        self.favWindow = Toplevel(self)
-        self.favWindow.title("Favorites")
-        self.favWindow.geometry(f"{int(self.tkHeight / self.cutHeight)}x{int(self.tkWidth / self.cutWidth)}")
-        
-        favorites_label = self.make_label("Show favorites", src=self.favWindow, bold=True)
-        favorites_label.grid(row=0, column=0, padx=5, pady=5)
-        
-        fav_button_frame = tk.Frame(self.favWindow)
-        fav_dir_btn = self.make_button("Folders", self.open_favorite_directories, src=fav_button_frame, bg='yellow')
-        fav_file_btn = self.make_button("Files", self.open_favorite_files, src=fav_button_frame, bg='beige')
-        fav_dir_btn.pack()
-        fav_file_btn.pack()
-        fav_button_frame.grid(row=0, column=1, padx=5, pady=5)
-    
     # last method: on closing, open file system(s) to open downloads
     # and allows up to 3 most recent directories open at once.
     def call_file_system_on_close(self):
         if (self.enableFileSystemOnClose.get() == 1):
-            for i in range(len(self.FSEXITLIST)):
-                element = self.FSEXITLIST[i]
+            for i in range(len(FSEXITLIST)):
+                element = FSEXITLIST[i]
                 filedialog.askopenfilename(
                     initialdir=element, 
-                    title=f"({i+1}/{len(self.FSEXITLIST)}) View Downloads in: {element}"
+                    title=f"({i+1}/{len(FSEXITLIST)}) View Downloads in: {element}"
                 )
-        self.FSEXITLIST.clear()
+        # save recent downloads to records
+        RECENTLIST.clear()
+        FSEXITLIST.clear()
         self.destroy()
         print("Exiting YouTube Audio Downloader...")
         sys.exit(0)
 
     # get URL
-    def retrieveURL(self, link):
+    def retrieveInWindowURL(self, link):
         webbrowser.open_new_tab(link)
 
     # credits and help
@@ -304,7 +290,7 @@ class AudioManager(tk.Tk):
         hyperlinkText = self.make_label("Link to GitHub", src=creditsFrame, fg='blue')
         hyperlinkText.bind(
             '<Button-1>', 
-            lambda e: self.retrieveURL("https://www.github.com/stephull/youtube-audio-downloader/")
+            lambda e: self.retrieveInWindowURL("https://www.github.com/stephull/youtube-audio-downloader/")
         )
         hyperlinkText.configure(font=font.Font(
             hyperlinkText, 
